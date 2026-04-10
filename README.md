@@ -65,7 +65,7 @@ TBD
 - [pc-ddsp](https://github.com/yxlllc/pc-ddsp) for waveform reconstruction
 - [RMVPE](https://github.com/Dream-High/RMVPE) and yxlllc's [fork](https://github.com/yxlllc/RMVPE) for pitch extraction
 - [Vocal Remover](https://github.com/tsurumeso/vocal-remover) and yxlllc's [fork](https://github.com/yxlllc/vocal-remover) for harmonic-noise separation
-
+- [Mel-Band RoFormer](https://arxiv.org/abs/2310.01809) and GaboxR67's [model](https://huggingface.co/GaboxR67/MelBandRoformers) for audio cleaning in pre-process
 ## Disclaimer
 
 Any organization or individual is prohibited from using any functionalities included in this repository to generate someone's speech without his/her consent, including but not limited to government leaders, political figures, and celebrities. If you do not comply with this item, you could be in violation of copyright laws.
