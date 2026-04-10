@@ -109,7 +109,9 @@ class VarianceBinarizer(BaseBinarizer):
             ds = ds[idx]
         return ds.get(attr)
 
-    def load_meta_data(self, raw_data_dir: pathlib.Path, ds_id, spk, lang):
+    def load_meta_data(self, raw_data_dir: pathlib.Path, ds_id, spk, lang, wav_data_dir: pathlib.Path = None):
+        if wav_data_dir is None:
+            wav_data_dir = raw_data_dir / 'wavs'
         meta_data_dict = {}
 
         with open(raw_data_dir / 'transcriptions.csv', 'r', encoding='utf8') as f:
@@ -135,7 +137,7 @@ class VarianceBinarizer(BaseBinarizer):
                     'spk_name': spk,
                     'language_id': self.lang_map[lang],
                     'language_name': lang,
-                    'wav_fn': str(raw_data_dir / 'wavs' / f'{item_name}.wav'),
+                    'wav_fn': self.resolve_wav_path(wav_data_dir, item_name),
                     'lang_seq': [
                         (
                             self.lang_map[lang if '/' not in p else p.split('/', maxsplit=1)[0]]
