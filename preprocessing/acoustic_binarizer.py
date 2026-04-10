@@ -68,13 +68,15 @@ class AcousticBinarizer(BaseBinarizer):
             "See https://github.com/openvpi/DiffSinger/releases/tag/v2.3.0 for more details."
         )
 
-    def load_meta_data(self, raw_data_dir: pathlib.Path, ds_id, spk, lang):
+    def load_meta_data(self, raw_data_dir: pathlib.Path, ds_id, spk, lang, wav_data_dir: pathlib.Path = None):
+        if wav_data_dir is None:
+            wav_data_dir = raw_data_dir / 'wavs'
         meta_data_dict = {}
         with open(raw_data_dir / 'transcriptions.csv', 'r', encoding='utf-8') as f:
             for utterance_label in csv.DictReader(f):
                 item_name = utterance_label['name']
                 temp_dict = {
-                    'wav_fn': str(raw_data_dir / 'wavs' / f'{item_name}.wav'),
+                    'wav_fn': self.resolve_wav_path(wav_data_dir, item_name),
                     'spk_id': self.spk_map[spk],
                     'spk_name': spk,
                     'lang_seq': [
