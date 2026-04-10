@@ -1,4 +1,5 @@
 import json
+import importlib
 import pathlib
 import pickle
 import random
@@ -70,6 +71,44 @@ class BaseBinarizer:
 
         self.phoneme_dictionary = load_phoneme_dictionary()
         self.timestep = hparams['hop_size'] / hparams['audio_sample_rate']
+        self.precleaner = self.build_precleaner()
+
+    def build_precleaner(self):
+        precleaner_cls = hparams.get('precleaner_cls')
+        if not precleaner_cls:
+            return None
+
+        pkg = ".".join(precleaner_cls.split(".")[:-1])
+        cls_name = precleaner_cls.split(".")[-1]
+        cls_type = getattr(importlib.import_module(pkg), cls_name)
+        precleaner = cls_type(precleaner_args=hparams.get('precleaner_args', {}))
+        print("| precleaner: ", type(precleaner))
+        return precleaner
+
+    @staticmethod
+    def resolve_wav_path(wav_data_dir: pathlib.Path, item_name: str) -> str:
+        direct_candidates = [
+            wav_data_dir / f'{item_name}.wav',
+            wav_data_dir / f'{item_name}.flac',
+        ]
+        for candidate in direct_candidates:
+            if candidate.exists():
+                return str(candidate)
+
+        # Fallback: scan recursively by stem to support templated output folders.
+        recursive_candidates = sorted(
+            [
+                p
+                for ext in ('*.wav', '*.flac')
+                for p in wav_data_dir.rglob(ext)
+                if p.stem == item_name
+            ]
+        )
+        if len(recursive_candidates) > 0:
+            return str(recursive_candidates[0])
+
+        # Keep historical behavior and let downstream logic raise if the file is truly missing.
+        return str(wav_data_dir / f'{item_name}.wav')
 
     def build_spk_map(self):
         spk_ids = [ds.get('spk_id') for ds in self.datasets]
@@ -106,7 +145,7 @@ class BaseBinarizer:
 
         print("| lang_map: ", self.lang_map)
 
-    def load_meta_data(self, raw_data_dir: pathlib.Path, ds_id, spk, lang) -> dict:
+    def load_meta_data(self, raw_data_dir: pathlib.Path, ds_id, spk, lang, wav_data_dir: pathlib.Path = None) -> dict:
         raise NotImplementedError()
 
     def split_train_valid_set(self, prefixes: list):
@@ -183,9 +222,14 @@ class BaseBinarizer:
         # load each dataset
         test_prefixes = []
         for ds_id, dataset in enumerate(self.datasets):
+            raw_data_dir = pathlib.Path(dataset['raw_data_dir'])
+            wav_data_dir = raw_data_dir / 'wavs'
+            if self.precleaner is not None:
+                wav_data_dir = pathlib.Path(self.precleaner.prepare(raw_data_dir))
             items = self.load_meta_data(
-                pathlib.Path(dataset['raw_data_dir']),
-                ds_id=ds_id, spk=dataset['speaker'], lang=dataset['language']
+                raw_data_dir,
+                ds_id=ds_id, spk=dataset['speaker'], lang=dataset['language'],
+                wav_data_dir=wav_data_dir
             )
             self.items.update(items)
             test_prefixes.extend(
