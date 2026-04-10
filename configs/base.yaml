@@ -11,6 +11,8 @@ binarizer_cls: null
 binarization_args:
   shuffle: false
   num_workers: 0
+precleaner_cls: null
+precleaner_args: {}
 
 audio_sample_rate: 44100
 hop_size: 512
