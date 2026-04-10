@@ -1,6 +1,7 @@
 import pathlib
 import subprocess
 import sys
+import shutil
 from typing import List
 
 
@@ -22,6 +23,8 @@ class MelBandRoformerPrecleaner:
 
         self.input_subdir = str(precleaner_args.get('input_subdir', 'wavs'))
         self.output_subdir = str(precleaner_args.get('output_subdir', 'wavs_precleaned'))
+        self.replace_originals = bool(precleaner_args.get('replace_originals', False))
+        self.cleanup_output_subdir = bool(precleaner_args.get('cleanup_output_subdir', True))
         self.filename_template = str(precleaner_args.get('filename_template', '{file_name}'))
         self.pcm_type = str(precleaner_args.get('pcm_type', 'FLOAT'))
 
@@ -95,6 +98,41 @@ class MelBandRoformerPrecleaner:
         print(f"| preclean command: {' '.join(cmd)}")
         subprocess.run(cmd, check=True)
 
+    @staticmethod
+    def _select_output_for_stem(outputs_by_stem: dict, stem: str):
+        candidates = outputs_by_stem.get(stem, [])
+        if len(candidates) == 0:
+            return None
+        if len(candidates) > 1:
+            raise RuntimeError(
+                f'Multiple cleaned tracks found for "{stem}": {[str(p) for p in candidates]}. '
+                f'Please ensure filename_template produces one output per input item.'
+            )
+        return candidates[0]
+
+    def _replace_input_files(self, input_files: List[pathlib.Path], output_dir: pathlib.Path):
+        output_files = self._collect_audio_files(output_dir)
+        outputs_by_stem = {}
+        for out_file in output_files:
+            outputs_by_stem.setdefault(out_file.stem, []).append(out_file)
+
+        missing = []
+        for in_file in input_files:
+            out_file = self._select_output_for_stem(outputs_by_stem, in_file.stem)
+            if out_file is None:
+                missing.append(in_file.stem)
+                continue
+
+            target = in_file.with_suffix(out_file.suffix)
+            if target != in_file and in_file.exists():
+                in_file.unlink()
+            shutil.copy2(out_file, target)
+
+        if len(missing) > 0:
+            raise RuntimeError(
+                f'Could not find cleaned outputs for {len(missing)} item(s), e.g. {missing[:5]}.'
+            )
+
     def prepare(self, raw_data_dir: pathlib.Path):
         raw_data_dir = pathlib.Path(raw_data_dir).resolve()
         if raw_data_dir in self._prepared_dirs:
@@ -113,6 +151,14 @@ class MelBandRoformerPrecleaner:
             self._run_inference(input_dir, output_dir)
         else:
             print(f"| precleaning skipped (already ready): {output_dir}")
+
+        if self.replace_originals:
+            print(f"| replacing original files in: {input_dir}")
+            self._replace_input_files(input_files, output_dir)
+            if self.cleanup_output_subdir and output_dir.exists():
+                shutil.rmtree(output_dir)
+            self._prepared_dirs[raw_data_dir] = input_dir
+            return input_dir
 
         self._prepared_dirs[raw_data_dir] = output_dir
         return output_dir
