@@ -31,6 +31,15 @@ datasets:
 binary_data_dir: data/xxx/binary
 binarization_args:
   num_workers: 0
+# Optional: clean waveforms before feature extraction (RMVPE / VR)
+# precleaner_cls: preprocessing.precleaners.melband_roformer.MelBandRoformerPrecleaner
+# precleaner_args:
+#   script_path: D:/Music-Source-Separation-Training/inference.py
+#   model_type: mel_band_roformer
+#   config_path: checkpoints/melband/inst_gabox.yaml
+#   ckpt_path: checkpoints/melband/denoisedebleed.ckpt
+#   output_subdir: wavs_precleaned
+#   overwrite: false
 pe: parselmouth
 pe_ckpt: 'checkpoints/rmvpe/model.pt'
 hnsep: vr
