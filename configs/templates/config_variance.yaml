@@ -39,6 +39,7 @@ binarization_args:
 #   config_path: checkpoints/melband/inst_gabox.yaml
 #   ckpt_path: checkpoints/melband/denoisedebleed.ckpt
 #   output_subdir: wavs_precleaned
+#   replace_originals: true
 #   overwrite: false
 pe: parselmouth
 pe_ckpt: 'checkpoints/rmvpe/model.pt'
