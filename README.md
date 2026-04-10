@@ -28,6 +28,52 @@ This is a refactored and enhanced version of _DiffSinger: Singing Voice Synthesi
 - **Deployment & production**: [OpenUTAU for DiffSinger](https://github.com/xunmengshe/OpenUtau), [DiffScope (under development)](https://github.com/openvpi/diffscope)
 - **Communication groups**: [QQ Group](http://qm.qq.com/cgi-bin/qm/qr?_wv=1027&k=fibG_dxuPW5maUJwe9_ya5-zFcIwaoOR&authKey=ZgLCG5EqQVUGCID1nfKei8tCnlQHAmD9koxebFXv5WfUchhLwWxb52o1pimNai5A&noverify=0&group_code=907879266) (907879266), [Discord server](https://discord.gg/wwbu2JUMjj)
 
+## MelBand Workflow in Binarizer
+
+This repository supports an optional **pre-cleaning stage** before standard feature extraction.
+When enabled, a MelBand Roformer checkpoint (e.g. `denoisedebleed.ckpt`) cleans raw audio first, then the cleaned files are consumed by RMVPE and VR during binarization.
+
+### End-to-end flow
+
+```mermaid
+flowchart LR
+    A["Raw Dataset<br/>raw/.../wavs/*.wav"] --> B["MelBand Precleaner<br/>inference.py + denoisedebleed.ckpt"]
+    B --> C["Cleaned Audio Folder<br/>raw/.../wavs_precleaned"]
+    C --> D["Binarizer Metadata Load<br/>resolve_wav_path(item_name)"]
+    D --> E["RMVPE<br/>F0 extraction"]
+    E --> F["VR / HNSEP<br/>harmonic-aperiodic decomposition"]
+    F --> G["Feature Packing<br/>mel, f0, variances, meta"]
+    G --> H["train.data / valid.data<br/>train.meta / valid.meta"]
+```
+
+### Naming rule (important)
+
+The binarizer reads item names from `transcriptions.csv` and resolves audio by `item_name`.
+To keep names aligned with CSV entries, use a filename template that preserves the original base name (without suffixes like `_instrumental`).
+
+```mermaid
+flowchart TD
+    A["CSV row: name=001"] --> B["Expected file stem: 001"]
+    B --> C["Good: filename_template = {file_name}"]
+    B --> D["Avoid: filename_template = {file_name}_{instr}"]
+    C --> E["Matched by binarizer"]
+    D --> F["May break direct name matching"]
+```
+
+### Minimal config example
+
+```yaml
+precleaner_cls: preprocessing.precleaners.melband_roformer.MelBandRoformerPrecleaner
+precleaner_args:
+  script_path: D:/Music-Source-Separation-Training/inference.py
+  model_type: mel_band_roformer
+  config_path: checkpoints/melband/inst_gabox.yaml
+  ckpt_path: checkpoints/melband/denoisedebleed.ckpt
+  output_subdir: wavs_precleaned
+  filename_template: "{file_name}"  # keep same stem as CSV `name`
+  overwrite: false
+```
+
 ## Progress & Roadmap
 
 - **Progress since we forked into this repository**: See [Releases](https://github.com/openvpi/DiffSinger/releases)
@@ -73,4 +119,3 @@ Any organization or individual is prohibited from using any functionalities incl
 ## License
 
 This forked DiffSinger repository is licensed under the [Apache 2.0 License](LICENSE).
-
